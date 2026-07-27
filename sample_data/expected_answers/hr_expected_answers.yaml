@@ -1,0 +1,6 @@
+annual_leave:
+  days: 25
+  carry_over: 5
+
+hybrid_working:
+  remote_days: 3
