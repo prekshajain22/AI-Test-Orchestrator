@@ -14,9 +14,10 @@
 ## Epic 2 - Prompt Testing
 
 - [x] Learn Promptfoo
-- [ ] Install Promptfoo
 - [x] Create AI test scenarios
 - [x] Create ground truth dataset
+- [x] Define AI quality criteria
+- [ ] Install Promptfoo
 - [ ] First Prompt Test
 - [ ] HTML Report
 - [ ] Add Documentation

@@ -44,3 +44,17 @@ Created enterprise-style HR policy documents to act as ground truth data.
 Learned that AI evaluation requires trusted reference material.
 
 Added hallucination scenarios where the expected behaviour is that the AI should refuse to invent information not present in the source document.
+
+## Day 6
+
+Defined AI evaluation criteria.
+
+Learned that AI testing requires measuring multiple quality dimensions:
+
+- Faithfulness
+- Relevancy
+- Hallucination
+- Completeness
+- Safety
+
+Unlike traditional automation, AI testing focuses on quality scoring rather than only pass/fail validation.
