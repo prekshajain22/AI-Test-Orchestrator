@@ -12,6 +12,7 @@ class Settings:
     model_name: str = os.getenv("MODEL_NAME", "google/flan-t5-base")
     temperature: float = float(os.getenv("TEMPERATURE", "0"))
     max_tokens: int = int(os.getenv("MAX_TOKENS", "256"))
-
+    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
+    provider: str = os.getenv("PROVIDER", "gemini")
 
 settings = Settings()
