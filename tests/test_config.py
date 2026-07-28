@@ -1,4 +1,4 @@
-from ai_orchestrator.config import settings
+from ai_orchestrator.config.settings import settings
 
 
 def test_settings_loaded():

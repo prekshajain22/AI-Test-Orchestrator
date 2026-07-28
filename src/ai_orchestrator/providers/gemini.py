@@ -1,7 +1,7 @@
 from google import genai
 
 from ai_orchestrator.providers.base import LLMClient
-from ai_orchestrator.config import settings
+from ai_orchestrator.config.settings import settings
 from google.genai.errors import ClientError
 
 class GeminiProvider(LLMClient):

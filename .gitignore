@@ -223,3 +223,7 @@ __pycache__/
 .pytest_cache/
 # graphify-axet
 .graphify/
+
+
+__pycache__/
+*.pyc
