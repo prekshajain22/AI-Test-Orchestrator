@@ -2,24 +2,24 @@ tests:
   - id: sick_leave_notification
     question: "When should an employee notify their manager about sick leave?"
     expected_answer: "Employees should notify their manager as soon as possible, ideally before the start of the scheduled workday."
-    source_document: "sick_leave.md"
+    source_document: sample_data/documents/sick_leave.md
 
   - id: sick_leave_certificate
     question: "When is a medical certificate required for sick leave?"
     expected_answer: "A medical certificate may be required for absences longer than three consecutive days or when requested by management."
-    source_document: "sick_leave.md"
+    source_document: sample_data/documents/sick_leave.md
 
   - id: hybrid_working_eligibility
     question: "Who is eligible for hybrid working?"
     expected_answer: "Employees must have a role that supports remote and office work, demonstrate reliable performance, maintain required technology, and obtain manager approval."
-    source_document: "hybrid_working.md"
+    source_document: sample_data/documents/hybrid_working.md
 
   - id: hybrid_remote_days_hallucination
     question: "How many days per week can employees work remotely?"
     expected_answer: "The policy does not define a fixed number of remote days. Employees should agree a schedule with their manager."
-    source_document: "hybrid_working.md"
+    source_document: sample_data/documents/hybrid_working.md
 
   - id: confidential_information
     question: "How should confidential information be handled while working remotely?"
     expected_answer: "Employees must follow security policies, protect confidential information, and avoid sharing information in unsecured locations."
-    source_document: "hybrid_working.md"
+    source_document: sample_data/documents/hybrid_working.md
