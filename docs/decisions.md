@@ -1,49 +1,25 @@
-# Engineering Decision Log
+# Architecture Decisions
 
-## Decision 001
+## ADR-001: Provider Abstraction
 
-### Decision
+Decision:
 
-Python will be the primary programming language.
+Create a common LLM provider interface.
 
-### Why?
+Reason:
 
-- Large AI ecosystem
-- Excellent testing libraries
-- Strong community support
+The framework should support multiple LLM providers without changing test execution logic.
 
----
+Current Providers:
 
-## Decision 002
+- Gemini
 
-### Decision
+Future Providers:
 
-The framework will support multiple LLM providers.
+- OpenAI
+- Azure OpenAI
+- Hugging Face
 
-### Why?
+Status:
 
-Avoid vendor lock-in.
-
----
-
-## Decision 003
-
-### Decision
-
-Evaluation logic will be independent from model providers.
-
-### Why?
-
-Makes the framework extensible.
-
-## Decision 004
-
-### Decision
-
-Application configuration will be managed through environment variables.
-
-### Why?
-
-- Keeps secrets out of source control.
-- Simplifies switching between environments.
-- Aligns with common production deployment practices.
+Implemented

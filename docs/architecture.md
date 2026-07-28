@@ -2,65 +2,87 @@
 
 ## Overview
 
-AI Test Orchestrator is designed as a modular AI Quality Engineering framework.
+AI Test Orchestrator is a modular AI Quality Engineering framework designed to test and evaluate LLM-based applications.
 
-The framework separates prompt execution, AI providers, evaluation metrics, reporting, and test cases into independent components.
+The framework separates test cases, document sources, LLM providers, evaluation engines, and reporting components to support scalable AI testing.
 
-This allows additional LLM providers or evaluation frameworks to be added with minimal changes.
+The architecture is designed to support multiple LLM providers and evaluation strategies.
 
 ---
 
-## High-Level Architecture
+# Current Implementation Architecture
 
-```
-
+The current implemented pipeline:
 Test Cases
-(YAML / JSON)
+(YAML)
 
-↓
+    |
+    v
 
-Prompt Runner
+PromptTestCase Model
 
-↓
+    |
+    v
+
+Document Loader
+
+    |
+    v
+
+Source Document Context
+
+    |
+    v
 
 LLM Provider
-(OpenAI / Hugging Face / Azure OpenAI)
+(Gemini)
 
-↓
+    |
+    v
 
-Evaluation Engine
-(DeepEval / Ragas)
-
-↓
-
-Reports
-(JSON / HTML / PDF)
-
-↓
-
-CI/CD
-
-```
+AI Response
 
 ---
 
-## Components
+# Implemented Components
 
-### Prompt Runner
+## Prompt Test Cases
 
 Responsible for:
 
-- Reading prompt test cases
-- Executing prompts
-- Collecting responses
+- Defining AI test scenarios
+- Storing questions
+- Maintaining expected answers
+- Linking source documents
+
+Current format:
+
+- YAML-based test cases
 
 ---
 
-### LLM Provider
+## Document Loader
 
-Supports multiple providers.
+Responsible for:
 
-Examples:
+- Loading source documents
+- Providing ground truth context for AI responses
+
+Current supported format:
+
+- Markdown documents
+
+---
+
+## LLM Provider Layer
+
+The provider layer abstracts interaction with AI models.
+
+Current provider:
+
+- Gemini
+
+Design supports future providers:
 
 - Hugging Face
 - OpenAI
@@ -68,33 +90,54 @@ Examples:
 
 ---
 
-### Evaluation Engine
+# Planned Architecture Components
 
-Measures:
+## Evaluation Engine
 
-- Hallucination
-- Answer Relevancy
+Future component responsible for automated AI quality measurement.
+
+Planned metrics:
+
+- Hallucination detection
 - Faithfulness
-- Context Precision
-- Bias
-- Toxicity
+- Answer relevancy
+- Context precision
+- Bias detection
+- Toxicity detection
+
+Potential frameworks:
+
+- DeepEval
+- Ragas
 
 ---
 
-### Reporting
+## Reporting Layer
 
-Produces
+Future component responsible for generating execution reports.
 
-- HTML Report
-- JSON Report
-- PDF Report
+Planned outputs:
+
+- JSON results
+- HTML reports
+- PDF reports
 
 ---
 
-## Future Enhancements
+## CI/CD Integration
 
-- Multiple LLM Comparison
-- AI Regression Testing
-- Cost Analysis
-- Performance Metrics
-- Dashboard
+Future capability:
+
+- Automated AI regression testing
+- Scheduled test execution
+- Pipeline quality gates
+
+---
+
+# Future Enhancements
+
+- Multiple LLM comparison
+- AI regression testing
+- Cost analysis
+- Performance metrics
+- Dashboard visualization

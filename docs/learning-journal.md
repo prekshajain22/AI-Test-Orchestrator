@@ -58,3 +58,23 @@ Learned that AI testing requires measuring multiple quality dimensions:
 - Safety
 
 Unlike traditional automation, AI testing focuses on quality scoring rather than only pass/fail validation.
+
+## Learning Entry: Building First LLM Test Pipeline
+
+Date: 28 July 2026
+
+Learnings:
+
+- LLM testing is similar to traditional QA validation.
+- Expected vs Actual comparison still applies.
+- Source documents provide the ground truth.
+- Provider abstraction allows multiple AI models.
+- Hallucination testing requires checking unsupported claims.
+
+Technical Skills Practiced:
+
+- Python package structure
+- API integration
+- Environment variables
+- YAML test data
+- LLM prompting

@@ -2,45 +2,51 @@
 
 ## v0.1 Foundation
 
-- Repository
+Completed
+
+- Repository setup
+- Project structure
 - Documentation
-- README
-- Architecture
+- Provider abstraction
 
----
+## v0.2 LLM Test Execution
 
-## v0.2 Prompt Testing
+Completed
 
-- Promptfoo
-- Prompt execution
-- Prompt assertions
+- YAML test cases
+- Document loading
+- Gemini integration
+- Test runner
 
----
+## v0.3 AI Evaluation Engine
 
-## v0.3 DeepEval
+In Progress
 
-- Hallucination Detection
-- Answer Relevancy
+- Hallucination detection
+- Faithfulness scoring
+- Relevance scoring
 
----
+## v0.4 Multi Provider Support
 
-## v0.4 RAG
+Planned
 
-- Document Retrieval
-- Evaluation
-
----
+- OpenAI
+- Azure OpenAI
+- Hugging Face
 
 ## v0.5 Reporting
 
-- HTML Report
-- JSON Report
-- PDF Report
+Planned
 
----
+- JSON reports
+- HTML reports
+- PDF reports
 
-## v1.0 Production Release
+## v1.0 Enterprise AI Quality Framework
 
-- CI/CD
-- GitHub Actions
-- Documentation
+Future
+
+- CI/CD integration
+- Regression testing
+- Dashboard
+- AI quality trends

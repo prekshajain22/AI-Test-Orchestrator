@@ -5,23 +5,31 @@
 Date:
 28 July 2026
 
-### Implemented Components
+## Implemented Components
+
+The first working AI test execution pipeline has been completed.
+
+Implemented:
 
 - Prompt test case model
-- YAML based test case loader
+- YAML-based AI test case management
 - Policy document loader
+- LLM provider abstraction
 - Gemini LLM provider integration
 - Test runner orchestration
 
-### Current Architecture
+## Current Architecture
 
 hr_questions.yaml
 |
 v
-PromptTestCase
+PromptTestCase Model
 |
 v
 Document Loader
+|
+v
+Source Policy Document
 |
 v
 Gemini Provider
@@ -29,14 +37,18 @@ Gemini Provider
 v
 AI Response
 
-### Supported Test Scenarios
+## Supported Test Scenarios
+
+The framework currently supports:
 
 1. Standard question answering
-2. Policy compliance checking
+2. Policy compliance validation
 3. Unknown information detection
 4. Hallucination prevention scenarios
 
-### Example Tests
+## Validation Completed
+
+Test scenarios executed successfully:
 
 - Sick leave notification requirements
 - Medical certificate requirements
@@ -44,13 +56,20 @@ AI Response
 - Remote working policy ambiguity
 - Confidential information handling
 
-### Current Status
+## Current Capability
 
-AI responses are successfully generated using source documents.
+The framework can:
 
-Next milestone:
-Add AI evaluation metrics:
+1. Load structured AI test cases from YAML
+2. Load source documents as ground truth
+3. Generate responses using an LLM provider
+4. Validate AI responses manually against expected answers
 
-- Faithfulness
-- Relevance
+## Next Milestone
+
+Implement automated AI evaluation metrics:
+
+- Faithfulness evaluation
+- Relevance scoring
 - Hallucination detection
+- Automated PASS/FAIL evaluation
