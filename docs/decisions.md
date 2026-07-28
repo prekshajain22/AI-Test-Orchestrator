@@ -35,3 +35,15 @@ Evaluation logic will be independent from model providers.
 ### Why?
 
 Makes the framework extensible.
+
+## Decision 004
+
+### Decision
+
+Application configuration will be managed through environment variables.
+
+### Why?
+
+- Keeps secrets out of source control.
+- Simplifies switching between environments.
+- Aligns with common production deployment practices.
