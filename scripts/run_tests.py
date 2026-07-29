@@ -1,8 +1,7 @@
 from ai_orchestrator.runners.runner import TestRunner
 
+runner = TestRunner()
 
-runner = TestRunner(
-    "sample_data/prompts/hr_questions.yaml"
-)
+results = runner.run()
 
-runner.run()
+print(f"Total executions: {len(results)}")

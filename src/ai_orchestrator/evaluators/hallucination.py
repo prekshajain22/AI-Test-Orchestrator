@@ -1,3 +1,5 @@
+import re
+
 from ai_orchestrator.evaluators.base import BaseEvaluator
 from ai_orchestrator.models import EvaluationResult
 
@@ -5,8 +7,51 @@ from ai_orchestrator.models import EvaluationResult
 class HallucinationEvaluator(BaseEvaluator):
     """
     Evaluates whether an AI response contains information
-    that is not supported by the source document.
+    unsupported by the source document.
     """
+
+    IGNORE_WORDS = {
+        "based",
+        "provided",
+        "context",
+        "according",
+        "information",
+        "response",
+        "answer",
+        "following",
+        "criteria",
+        "there",
+        "is",
+        "are",
+        "was",
+        "were",
+        "the",
+        "a",
+        "an",
+        "to",
+        "of",
+        "and",
+        "for",
+        "in",
+        "on",
+        "with",
+        "must",
+        "should",
+    }
+
+    def _clean_text(self, text: str) -> set[str]:
+        """
+        Normalize text for comparison.
+        """
+
+        text = text.lower()
+
+        text = re.sub(r"[^\w\s]", "", text)
+
+        words = set(text.split())
+
+        return words - self.IGNORE_WORDS
+
 
     def evaluate(
         self,
@@ -15,36 +60,34 @@ class HallucinationEvaluator(BaseEvaluator):
         answer: str,
         context: str,
     ) -> EvaluationResult:
-        """
-        Compare AI response against source context.
 
-        Returns:
-            EvaluationResult containing hallucination score and explanation.
-        """
-
-        answer_words = set(answer.lower().split())
-        context_words = set(context.lower().split())
+        answer_words = self._clean_text(answer)
+        context_words = self._clean_text(context)
 
         unsupported_words = answer_words - context_words
 
-        score = 1.0 if not unsupported_words else 0.0
 
-        passed = score == 1.0
+        # Ignore very small differences
+        confidence = 1.0 - (
+            len(unsupported_words) /
+            max(len(answer_words), 1)
+        )
 
-        if passed:
-            reason = (
-                "Response is supported by the source document."
-            )
-        else:
-            reason = (
-                f"Potential unsupported information detected: "
-                f"{unsupported_words}"
-            )
+
+        passed = confidence >= 0.7
+
+
+        reason = (
+            "Response appears supported by source document."
+            if passed
+            else f"Potential unsupported information detected: {unsupported_words}"
+        )
+
 
         return EvaluationResult(
             test_id=test_id,
             metric="hallucination",
-            score=score,
+            score=round(confidence, 2),
             passed=passed,
             reason=reason,
         )

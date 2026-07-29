@@ -223,7 +223,8 @@ __pycache__/
 .pytest_cache/
 # graphify-axet
 .graphify/
-
-
-__pycache__/
+*.py[cod]
 *.pyc
+
+# Generated reports
+reports/json/
