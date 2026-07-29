@@ -1,0 +1,25 @@
+# Central execution configuration.
+# Combines what used to live in config/test_suite.yaml and config/evaluation.yaml
+# into a single file that drives a full run of the AI Test Orchestrator.
+
+# Provider used to generate AI answers
+provider:
+  name: gemini
+
+# List of prompt test suite files to run.
+# Renamed from "tests" -> "test_suites" since there can be any number
+# of test suite YAML files, not just one.
+test_suites:
+  - sample_data/prompts/hr_questions.yaml
+
+# Evaluators to run against each AI response
+evaluators:
+  - hallucination
+  - relevance
+  - faithfulness
+
+# Report formats to generate for the run
+reports:
+  - json
+  - html
+  - pdf

@@ -1,6 +1,5 @@
 import logging
 
-from ai_orchestrator.config.loader import load_evaluation_config, load_test_suite
 from ai_orchestrator.evaluators.engine import EvaluationEngine
 from ai_orchestrator.evaluators import EvaluationFactory
 from ai_orchestrator.loaders import load_document, load_prompt_tests
@@ -12,31 +11,38 @@ logger = logging.getLogger(__name__)
 
 class ExecutionService:
     """
-    Executes a full test suite end-to-end.
+    Executes a full test run end-to-end.
 
-    Configuration is read from:
-      - config/test_suite.yaml  (provider, list of prompt files)
-      - config/evaluation.yaml  (which evaluators to run)
+    Receives everything it needs via its constructor instead of reading
+    configuration files itself:
+      - provider_name: which LLM provider to use (e.g. "gemini")
+      - test_suites: any number of prompt test suite YAML file paths
+      - evaluators: which evaluators to run against each AI response
+
+    Configuration loading is the caller's responsibility (see
+    ai_orchestrator.config.loader.load_execution_config and
+    ai_orchestrator.runners.runner.TestRunner), which keeps this service
+    decoupled from how/where config is stored, and combinable with any
+    number of test suite files.
 
     Does not know about reporting or how results are displayed.
     """
 
-    TEST_SUITE_CONFIG = "config/test_suite.yaml"
-    EVALUATION_CONFIG = "config/evaluation.yaml"
-
-    def __init__(self):
-        suite_config = load_test_suite(self.TEST_SUITE_CONFIG)
-        eval_config = load_evaluation_config(self.EVALUATION_CONFIG)
-
-        self.provider = ProviderFactory.create(suite_config.provider)
-        self.test_paths = suite_config.tests
+    def __init__(
+        self,
+        provider_name: str,
+        test_suites: list[str],
+        evaluators: list[str],
+    ):
+        self.provider = ProviderFactory.create(provider_name)
+        self.test_paths = test_suites
 
         self.engine = EvaluationEngine()
-        for evaluator in EvaluationFactory.create_all(eval_config.evaluators):
+        for evaluator in EvaluationFactory.create_all(evaluators):
             self.engine.register(evaluator)
 
     def execute(self) -> list[TestExecutionResult]:
-        """Run all test suites defined in config/test_suite.yaml."""
+        """Run all configured test suites."""
         execution_results: list[TestExecutionResult] = []
 
         for prompts_path in self.test_paths:

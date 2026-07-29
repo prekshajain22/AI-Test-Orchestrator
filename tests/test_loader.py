@@ -5,10 +5,8 @@ import pytest
 from ai_orchestrator.loaders.prompt_loader import load_prompt_tests
 from ai_orchestrator.loaders.document_loader import load_document
 from ai_orchestrator.config.loader import (
-    load_test_suite,
-    load_evaluation_config,
-    TestSuiteConfig,
-    EvaluationConfig,
+    load_execution_config,
+    ExecutionConfig,
 )
 
 
@@ -23,16 +21,25 @@ PROMPT_YAML = textwrap.dedent("""\
         source_document: "docs/hybrid.md"
 """)
 
-TEST_SUITE_YAML = textwrap.dedent("""\
-    provider: gemini
-    tests:
+EXECUTION_YAML = textwrap.dedent("""\
+    provider:
+      name: gemini
+    test_suites:
       - sample_data/prompts/hr_questions.yaml
-""")
-
-EVAL_YAML = textwrap.dedent("""\
     evaluators:
       - hallucination
       - relevance
+    reports:
+      - json
+      - html
+""")
+
+EXECUTION_YAML_STRING_PROVIDER = textwrap.dedent("""\
+    provider: gemini
+    test_suites:
+      - sample_data/prompts/hr_questions.yaml
+    evaluators:
+      - hallucination
 """)
 
 
@@ -73,18 +80,38 @@ def test_load_document_returns_content(tmp_path):
 
 # ── Config loader ──────────────────────────────────────────────
 
-def test_load_test_suite_config(tmp_path):
-    p = tmp_path / "test_suite.yaml"
-    p.write_text(TEST_SUITE_YAML)
-    config = load_test_suite(str(p))
-    assert isinstance(config, TestSuiteConfig)
+def test_load_execution_config(tmp_path):
+    p = tmp_path / "execution.yaml"
+    p.write_text(EXECUTION_YAML)
+    config = load_execution_config(str(p))
+    assert isinstance(config, ExecutionConfig)
     assert config.provider == "gemini"
-    assert len(config.tests) == 1
-
-
-def test_load_evaluation_config(tmp_path):
-    p = tmp_path / "evaluation.yaml"
-    p.write_text(EVAL_YAML)
-    config = load_evaluation_config(str(p))
-    assert isinstance(config, EvaluationConfig)
+    assert config.test_suites == ["sample_data/prompts/hr_questions.yaml"]
     assert config.evaluators == ["hallucination", "relevance"]
+    assert config.reports == ["json", "html"]
+
+
+def test_load_execution_config_supports_multiple_test_suites(tmp_path):
+    p = tmp_path / "execution.yaml"
+    p.write_text(
+        textwrap.dedent("""\
+            provider:
+              name: gemini
+            test_suites:
+              - suite_one.yaml
+              - suite_two.yaml
+              - suite_three.yaml
+            evaluators:
+              - hallucination
+        """)
+    )
+    config = load_execution_config(str(p))
+    assert len(config.test_suites) == 3
+
+
+def test_load_execution_config_accepts_string_provider(tmp_path):
+    p = tmp_path / "execution.yaml"
+    p.write_text(EXECUTION_YAML_STRING_PROVIDER)
+    config = load_execution_config(str(p))
+    assert config.provider == "gemini"
+    assert config.evaluators == ["hallucination"]

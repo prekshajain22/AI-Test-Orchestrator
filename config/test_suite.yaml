@@ -1,6 +1,0 @@
-# Provider to use for generating answers
-provider: gemini
-
-# List of prompt test suite files to run
-tests:
-  - sample_data/prompts/hr_questions.yaml

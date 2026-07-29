@@ -1,5 +1,0 @@
-# List of evaluators to run against each AI response
-evaluators:
-  - hallucination
-  - relevance
-  - faithfulness
