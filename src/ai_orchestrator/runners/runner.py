@@ -10,12 +10,17 @@ from ai_orchestrator.loaders import (
 )
 from ai_orchestrator.models import TestExecutionResult
 from ai_orchestrator.providers.gemini import GeminiProvider
-from ai_orchestrator.reporting import JsonReport
+from ai_orchestrator.reporting import (
+    ExecutionSummaryBuilder,
+    HtmlReport,
+    JsonReport,
+    PdfReport,
+)
 
 
 class TestRunner:
     """
-    Executes AI test cases and evaluates responses.
+    Executes AI test cases, evaluates responses, and generates reports.
     """
 
     def __init__(self):
@@ -26,7 +31,9 @@ class TestRunner:
         self.engine.register(RelevanceEvaluator())
         self.engine.register(FaithfulnessEvaluator())
 
-        self.reporter = JsonReport()
+        self.json_report = JsonReport()
+        self.html_report = HtmlReport()
+        self.pdf_report = PdfReport()
 
     def run(self) -> list[TestExecutionResult]:
 
@@ -41,9 +48,7 @@ class TestRunner:
             print("=" * 60)
             print(f"Running: {test.id}")
 
-            context = load_document(
-                test.source_document
-            )
+            context = load_document(test.source_document)
 
             answer = self.provider.ask(
                 test.question,
@@ -81,16 +86,22 @@ class TestRunner:
                 evaluations=evaluations,
             )
 
-            execution_results.append(
-                execution_result
-            )
+            execution_results.append(execution_result)
 
-        report_path = self.reporter.generate(
-            execution_results
-        )
+        summary = ExecutionSummaryBuilder.build(execution_results)
+
+        json_path = self.json_report.generate(summary, execution_results)
+        html_path = self.html_report.generate(summary, execution_results)
 
         print()
         print("=" * 60)
-        print(f"JSON report generated: {report_path}")
+        print(f"JSON report: {json_path}")
+        print(f"HTML report: {html_path}")
+
+        try:
+            pdf_path = self.pdf_report.generate(summary, execution_results)
+            print(f"PDF  report: {pdf_path}")
+        except ImportError as e:
+            print(f"PDF  report: skipped — {e}")
 
         return execution_results

@@ -4,11 +4,12 @@ from datetime import datetime
 from pathlib import Path
 
 from ai_orchestrator.models import TestExecutionResult
+from ai_orchestrator.models.execution_summary import ExecutionSummary
 
 
 class JsonReport:
     """
-    Generates a JSON report containing the results of a test execution.
+    Generates a JSON report containing an execution summary and full results.
     """
 
     def __init__(self, output_dir: str = "reports/json"):
@@ -17,34 +18,25 @@ class JsonReport:
 
     def generate(
         self,
+        summary: ExecutionSummary,
         execution_results: list[TestExecutionResult],
     ) -> Path:
         """
-        Save execution results as a JSON report.
+        Save execution summary and raw results as a JSON report.
+
+        The report contains two top-level sections:
+          - summary: aggregated statistics (pass rate, per-metric scores, etc.)
+          - execution_results: the full per-test detail
         """
-
-        passed = sum(
-            all(result.passed for result in test.evaluations)
-            for test in execution_results
-        )
-
-        failed = len(execution_results) - passed
-
         report = {
-            "execution_time": datetime.now().isoformat(timespec="seconds"),
-            "total_tests": len(execution_results),
-            "passed": passed,
-            "failed": failed,
-            "tests": [asdict(test) for test in execution_results],
+            "summary": asdict(summary),
+            "execution_results": [asdict(r) for r in execution_results],
         }
 
-        filename = (
-            f"execution_{datetime.now():%Y%m%d_%H%M%S}.json"
-        )
-
+        filename = f"execution_{datetime.now():%Y%m%d_%H%M%S}.json"
         output_file = self.output_dir / filename
 
-        with output_file.open("w", encoding="utf-8") as file:
-            json.dump(report, file, indent=4)
+        with output_file.open("w", encoding="utf-8") as f:
+            json.dump(report, f, indent=4)
 
         return output_file
