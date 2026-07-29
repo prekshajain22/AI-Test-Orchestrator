@@ -2,7 +2,7 @@ import logging
 
 from ai_orchestrator.config.loader import load_evaluation_config, load_test_suite
 from ai_orchestrator.evaluators.engine import EvaluationEngine
-from ai_orchestrator.evaluators.factory import EvaluationFactory
+from ai_orchestrator.evaluators import EvaluationFactory
 from ai_orchestrator.loaders import load_document, load_prompt_tests
 from ai_orchestrator.models import TestExecutionResult
 from ai_orchestrator.providers.factory import ProviderFactory

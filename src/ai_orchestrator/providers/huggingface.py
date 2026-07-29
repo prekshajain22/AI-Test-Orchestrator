@@ -1,7 +1,7 @@
 import requests
 
 from ai_orchestrator.config.settings import settings
-from ai_orchestrator.providers.llm_client import LLMClient
+from ai_orchestrator.providers.base import LLMClient
 
 
 class HuggingFaceClient(LLMClient):
