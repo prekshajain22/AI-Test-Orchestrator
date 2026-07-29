@@ -34,12 +34,20 @@ class ExecutionService:
         test_suites: list[str],
         evaluators: list[str],
     ):
+        self.provider_name = provider_name
         self.provider = ProviderFactory.create(provider_name)
         self.test_paths = test_suites
 
         self.engine = EvaluationEngine()
         for evaluator in EvaluationFactory.create_all(evaluators):
             self.engine.register(evaluator)
+
+    @property
+    def model_name(self) -> str:
+        """Best-effort lookup of the model name used by the active provider."""
+        return getattr(self.provider, "model", None) or getattr(
+            self.provider, "model_name", "unknown"
+        )
 
     def execute(self) -> list[TestExecutionResult]:
         """Run all configured test suites."""

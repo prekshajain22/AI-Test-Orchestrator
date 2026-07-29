@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
 
+from ai_orchestrator.models.execution_metadata import ExecutionMetadata
+
 
 @dataclass
 class MetricStats:
@@ -29,6 +31,7 @@ class ExecutionSummary:
     failed: int
     pass_rate: float  # 0.0 – 100.0
     metric_stats: dict[str, MetricStats] = field(default_factory=dict)
+    metadata: ExecutionMetadata | None = None
 
     @property
     def overall_status(self) -> str:

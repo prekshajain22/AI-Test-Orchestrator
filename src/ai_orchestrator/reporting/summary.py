@@ -2,6 +2,7 @@ from datetime import datetime
 
 from ai_orchestrator.models import TestExecutionResult
 from ai_orchestrator.models.execution_summary import ExecutionSummary, MetricStats
+from ai_orchestrator.models.execution_metadata import ExecutionMetadata
 
 
 class ExecutionSummaryBuilder:
@@ -13,7 +14,10 @@ class ExecutionSummaryBuilder:
     """
 
     @staticmethod
-    def build(results: list[TestExecutionResult]) -> ExecutionSummary:
+    def build(
+        results: list[TestExecutionResult],
+        metadata: ExecutionMetadata | None = None,
+    ) -> ExecutionSummary:
         total = len(results)
 
         passed = sum(
@@ -48,4 +52,5 @@ class ExecutionSummaryBuilder:
             failed=failed,
             pass_rate=pass_rate,
             metric_stats=metric_stats,
+            metadata=metadata,
         )

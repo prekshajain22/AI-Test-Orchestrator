@@ -8,9 +8,6 @@ import yaml
 class ExecutionConfig:
     """
     Combined execution configuration loaded from config/execution.yaml.
-
-    Merges what used to be split across config/test_suite.yaml and
-    config/evaluation.yaml into a single config file:
       - provider: which LLM provider to use
       - test_suites: any number of prompt test suite YAML files
       - evaluators: which evaluators to run against each response

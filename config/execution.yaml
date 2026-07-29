@@ -1,6 +1,4 @@
 # Central execution configuration.
-# Combines what used to live in config/test_suite.yaml and config/evaluation.yaml
-# into a single file that drives a full run of the AI Test Orchestrator.
 
 # Provider used to generate AI answers
 provider:

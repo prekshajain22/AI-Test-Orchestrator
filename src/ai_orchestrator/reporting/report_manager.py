@@ -1,4 +1,5 @@
 from ai_orchestrator.models import TestExecutionResult
+from ai_orchestrator.models.execution_metadata import ExecutionMetadata
 from ai_orchestrator.reporting.summary import ExecutionSummaryBuilder
 from ai_orchestrator.reporting.json_report import JsonReport
 from ai_orchestrator.reporting.html_report import HtmlReport
@@ -26,11 +27,15 @@ class ReportManager:
         self._html = HtmlReport()
         self._pdf = PdfReport()
 
-    def generate(self, execution_results: list[TestExecutionResult]) -> None:
+    def generate(
+        self,
+        execution_results: list[TestExecutionResult],
+        metadata: ExecutionMetadata | None = None,
+    ) -> None:
         """
         Build the execution summary and write the configured report formats.
         """
-        summary = ExecutionSummaryBuilder.build(execution_results)
+        summary = ExecutionSummaryBuilder.build(execution_results, metadata=metadata)
 
         print()
         print("=" * 60)
