@@ -17,7 +17,7 @@ def load_prompt_tests(file_path: str) -> list[PromptTestCase]:
             PromptTestCase(
                 id=item["id"],
                 question=item["question"],
-                expected_answer=item["expected_answer"],
+                expected_answer=item.get("expected_answer", ""),
                 source_document=item["source_document"],
             )
         )
