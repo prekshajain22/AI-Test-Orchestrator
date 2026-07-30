@@ -7,6 +7,7 @@ from ai_orchestrator.models.execution_summary import ExecutionSummary, MetricSta
 from ai_orchestrator.models.execution_metadata import ExecutionMetadata
 from ai_orchestrator.models.chunk import Chunk
 from ai_orchestrator.models.retrieval import RetrievedChunk
+from ai_orchestrator.models.retrieval_metrics import RetrievalMetrics
 
 __all__ = [
     "PromptTestCase",
@@ -19,4 +20,5 @@ __all__ = [
     "ExecutionMetadata",
     "Chunk",
     "RetrievedChunk",
+    "RetrievalMetrics",
 ]

@@ -1,6 +1,10 @@
-from dataclasses import dataclass
+from __future__ import annotations
 
-from ai_orchestrator.models import EvaluationResult
+from dataclasses import dataclass, field
+from typing import Optional
+
+from ai_orchestrator.models.evaluation import EvaluationResult
+from ai_orchestrator.models.retrieval_metrics import RetrievalMetrics
 
 
 @dataclass
@@ -12,6 +16,7 @@ class TestExecutionResult:
     answer: str
     evaluations: list[EvaluationResult]
     error: str | None = None
+    retrieval_metrics: Optional[RetrievalMetrics] = field(default=None)
     """
     Set when the provider itself failed to produce an answer (e.g. rate
     limit / quota exceeded). When set, `answer` and `evaluations` should be

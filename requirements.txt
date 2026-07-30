@@ -4,3 +4,17 @@ python-dotenv==1.2.2
 playwright==1.61.0
 requests==2.32.3
 pytest==8.3.4
+
+# ── Optional RAG retriever dependencies ──────────────────────────────────────
+# Uncomment the retriever(s) you want to use in config/execution.yaml.
+#
+# retriever: sentence_transformer
+# sentence-transformers>=2.7.0
+# torch>=2.0
+#
+# retriever: faiss
+# faiss-cpu>=1.8.0
+# sentence-transformers>=2.7.0
+#
+# retriever: chroma
+# chromadb>=0.5.0

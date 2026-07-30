@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from typing import Optional
 
@@ -6,29 +8,49 @@ from ai_orchestrator.evaluators.engine import EvaluationEngine
 from ai_orchestrator.evaluators import EvaluationFactory
 from ai_orchestrator.loaders import load_document, load_prompt_tests
 from ai_orchestrator.loaders.chunker import chunk_document
-from ai_orchestrator.models import TestExecutionResult
+from ai_orchestrator.models import RetrievalMetrics, TestExecutionResult
 from ai_orchestrator.providers import ProviderFactory
 from ai_orchestrator.providers.base import ProviderError
-from ai_orchestrator.retrievers import TfidfRetriever
+from ai_orchestrator.retrievers import TfidfRetriever, BM25Retriever
+from ai_orchestrator.retrievers.base import BaseRetriever
 
 logger = logging.getLogger(__name__)
 
-# Registry of available retrievers by name — extend as new strategies land.
-_RETRIEVER_REGISTRY = {
-    "tfidf": TfidfRetriever,
-}
 
+def _build_retriever(retriever_name: str) -> BaseRetriever:
+    """
+    Instantiate a retriever by name.
 
-def _build_retriever(retriever_name: str):
-    """Instantiate a retriever by name, raising a clear error if unknown."""
-    cls = _RETRIEVER_REGISTRY.get(retriever_name)
-    if cls is None:
-        available = list(_RETRIEVER_REGISTRY)
-        raise ValueError(
-            f"Unknown retriever: '{retriever_name}'. "
-            f"Available: {available}"
+    Pure-Python retrievers (tfidf, bm25) are imported eagerly.
+    Heavy-dependency retrievers (sentence_transformer, faiss, chroma) are
+    imported lazily here so that the application starts successfully even
+    when the optional packages are not installed — the ImportError is only
+    raised if you actually try to USE one of those retrievers.
+    """
+    if retriever_name == "tfidf":
+        return TfidfRetriever()
+
+    if retriever_name == "bm25":
+        return BM25Retriever()
+
+    if retriever_name == "sentence_transformer":
+        from ai_orchestrator.retrievers.sentence_transformer_retriever import (
+            SentenceTransformerRetriever,
         )
-    return cls()
+        return SentenceTransformerRetriever()
+
+    if retriever_name == "faiss":
+        from ai_orchestrator.retrievers.faiss_retriever import FaissRetriever
+        return FaissRetriever()
+
+    if retriever_name == "chroma":
+        from ai_orchestrator.retrievers.chroma_retriever import ChromaRetriever
+        return ChromaRetriever()
+
+    available = ["tfidf", "bm25", "sentence_transformer", "faiss", "chroma"]
+    raise ValueError(
+        f"Unknown retriever: '{retriever_name}'. Available: {available}"
+    )
 
 
 class ExecutionService:
@@ -54,13 +76,19 @@ class ExecutionService:
         relevant chunks (ranked by the configured retriever) are joined and
         used as context.
 
+    Supported retrievers (``rag_config.retriever``):
+      - ``tfidf``               — TF-IDF cosine similarity (pure Python, default)
+      - ``bm25``                — Okapi BM25 (pure Python)
+      - ``sentence_transformer``— Dense embeddings via sentence-transformers
+                                  (``pip install sentence-transformers``)
+      - ``faiss``               — FAISS ANN + sentence-transformers
+                                  (``pip install faiss-cpu sentence-transformers``)
+      - ``chroma``              — ChromaDB in-memory vector store
+                                  (``pip install chromadb``)
+
     Configuration loading is the caller's responsibility (see
     ai_orchestrator.config.loader.load_execution_config and
-    ai_orchestrator.runners.runner.TestRunner), which keeps this service
-    decoupled from how/where config is stored, and combinable with any
-    number of test suite files.
-
-    Does not know about reporting or how results are displayed.
+    ai_orchestrator.runners.runner.TestRunner).
     """
 
     def __init__(
@@ -76,7 +104,9 @@ class ExecutionService:
 
         # RAG retrieval — build once, reuse for every test.
         self._rag_config: RagConfig = rag_config or RagConfig()
-        self._retriever = _build_retriever(self._rag_config.retriever)
+        self._retriever: BaseRetriever = _build_retriever(
+            self._rag_config.retriever
+        )
 
         self.engine = EvaluationEngine()
         for evaluator in EvaluationFactory.create_all(evaluators):
@@ -108,18 +138,27 @@ class ExecutionService:
         """Return True when this test case should be run in RAG mode."""
         return self._rag_config.enabled or test.use_rag
 
-    def _build_rag_context(self, document_text: str, question: str) -> str:
+    def _build_rag_context(
+        self, document_text: str, question: str, expected_answer: str
+    ) -> tuple[str, RetrievalMetrics]:
         """
-        Chunk *document_text*, retrieve the top-k most relevant chunks for
-        *question*, and return their text joined by double newlines.
+        Chunk *document_text*, retrieve top-k most relevant chunks, join
+        their text, and return ``(context_str, RetrievalMetrics)``.
 
-        Returns the full document unchanged if chunking produces no chunks
-        (e.g. empty document), so the LLM call is never left without context.
+        Falls back to the full document if chunking or retrieval returns
+        nothing, so the LLM call is never left without context.
         """
+        retriever_name = self._rag_config.retriever
         chunks = chunk_document(document_text)
+
         if not chunks:
             logger.warning("chunk_document returned no chunks — using full document.")
-            return document_text
+            metrics = RetrievalMetrics.compute(
+                retriever_name=retriever_name,
+                retrieved=[],
+                expected_answer=expected_answer,
+            )
+            return document_text, metrics
 
         top_k = self._rag_config.top_k
         retrieved = self._retriever.retrieve(question, chunks, top_k=top_k)
@@ -130,17 +169,37 @@ class ExecutionService:
                 "falling back to full document.",
                 question,
             )
-            return document_text
+            metrics = RetrievalMetrics.compute(
+                retriever_name=retriever_name,
+                retrieved=[],
+                expected_answer=expected_answer,
+            )
+            return document_text, metrics
 
-        logger.debug(
-            "RAG: retrieved %d/%d chunks (top_k=%d) for question %r",
-            len(retrieved),
-            len(chunks),
-            top_k,
-            question,
+        metrics = RetrievalMetrics.compute(
+            retriever_name=retriever_name,
+            retrieved=retrieved,
+            expected_answer=expected_answer,
         )
+        context = "\n\n".join(rc.chunk.text for rc in retrieved)
+        return context, metrics
 
-        return "\n\n".join(rc.chunk.text for rc in retrieved)
+    def _log_retrieval_metrics(self, test_id: str, metrics: RetrievalMetrics) -> None:
+        """Emit a structured INFO block matching the user-facing report format."""
+        scores_str = "  ".join(f"{s:.2f}" for s in metrics.chunk_scores)
+        relevant = "YES" if metrics.hit_at_k else "NO"
+        logger.info(
+            "  [RETRIEVAL] test=%s  retriever=%s  chunks=%d  "
+            "scores=[%s]  relevant=%s  avg_sim=%.2f  coverage=%.0f%%  mrr=%.2f",
+            test_id,
+            metrics.retriever_name,
+            metrics.chunks_retrieved,
+            scores_str,
+            relevant,
+            metrics.average_similarity,
+            metrics.context_coverage * 100,
+            metrics.mrr,
+        )
 
     def _run_suite(self, prompts_path: str) -> list[TestExecutionResult]:
         tests = load_prompt_tests(prompts_path)
@@ -150,10 +209,14 @@ class ExecutionService:
             logger.info("Running test: %s", test.id)
 
             full_document = load_document(test.source_document)
+            retrieval_metrics: Optional[RetrievalMetrics] = None
 
             # Select context: RAG-retrieved chunks or full document.
             if self._use_rag_for(test):
-                context = self._build_rag_context(full_document, test.question)
+                context, retrieval_metrics = self._build_rag_context(
+                    full_document, test.question, test.expected_answer
+                )
+                self._log_retrieval_metrics(test.id, retrieval_metrics)
                 logger.info(
                     "  [RAG] Using retrieved context (%d chars) for test %s",
                     len(context),
@@ -175,6 +238,7 @@ class ExecutionService:
                         answer="",
                         evaluations=[],
                         error=str(e),
+                        retrieval_metrics=retrieval_metrics,
                     )
                 )
                 continue
@@ -202,6 +266,7 @@ class ExecutionService:
                     question=test.question,
                     answer=answer,
                     evaluations=evaluations,
+                    retrieval_metrics=retrieval_metrics,
                 )
             )
 
