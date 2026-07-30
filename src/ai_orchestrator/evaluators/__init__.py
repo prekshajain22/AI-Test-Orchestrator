@@ -3,18 +3,27 @@ from .engine import EvaluationEngine
 from .hallucination import HallucinationEvaluator
 from .relevance import RelevanceEvaluator
 from .faithfulness import FaithfulnessEvaluator
+from .llm_judge import LlmJudgeEvaluator
 
 
 class EvaluationFactory:
     """
     Creates evaluator instances by name.
-    Allows evaluators to be selected via config/evaluation.yaml.
+    Allows evaluators to be selected via config/execution.yaml.
+
+    Available evaluators:
+      - hallucination        — heuristic keyword-overlap check
+      - relevance            — question-answer keyword match
+      - faithfulness         — sentence-level faithfulness to context
+      - llm_judge            — LLM-as-a-Judge (4 dimensions: correctness,
+                               completeness, groundedness, helpfulness)
     """
 
     _registry: dict[str, type[BaseEvaluator]] = {
         "hallucination": HallucinationEvaluator,
         "relevance": RelevanceEvaluator,
         "faithfulness": FaithfulnessEvaluator,
+        "llm_judge": LlmJudgeEvaluator,
     }
 
     @classmethod
@@ -37,5 +46,6 @@ __all__ = [
     "HallucinationEvaluator",
     "RelevanceEvaluator",
     "FaithfulnessEvaluator",
+    "LlmJudgeEvaluator",
     "EvaluationFactory",
 ]

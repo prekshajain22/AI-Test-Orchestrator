@@ -59,13 +59,12 @@ class HallucinationEvaluator(BaseEvaluator):
         question: str,
         answer: str,
         context: str,
-    ) -> EvaluationResult:
+    ) -> list[EvaluationResult]:
 
         answer_words = self._clean_text(answer)
         context_words = self._clean_text(context)
 
         unsupported_words = answer_words - context_words
-
 
         # Ignore very small differences
         confidence = 1.0 - (
@@ -73,9 +72,7 @@ class HallucinationEvaluator(BaseEvaluator):
             max(len(answer_words), 1)
         )
 
-
         passed = confidence >= 0.7
-
 
         reason = (
             "Response appears supported by source document."
@@ -83,11 +80,10 @@ class HallucinationEvaluator(BaseEvaluator):
             else f"Potential unsupported information detected: {unsupported_words}"
         )
 
-
-        return EvaluationResult(
+        return [EvaluationResult(
             test_id=test_id,
             metric="hallucination",
             score=round(confidence, 2),
             passed=passed,
             reason=reason,
-        )
+        )]

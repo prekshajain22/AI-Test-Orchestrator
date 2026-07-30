@@ -100,34 +100,30 @@ class FaithfulnessEvaluator(BaseEvaluator):
         question: str,
         answer: str,
         context: str,
-    ) -> EvaluationResult:
+    ) -> list[EvaluationResult]:
 
         answer_sentences = self._split_sentences(answer)
         context_sentences = self._split_sentences(context)
 
         if not answer_sentences:
-            return EvaluationResult(
+            return [EvaluationResult(
                 test_id=test_id,
                 metric="faithfulness",
                 score=0.0,
                 passed=False,
                 reason="Answer is empty.",
-            )
+            )]
 
         similarities = []
 
         for answer_sentence in answer_sentences:
-
             best_score = 0.0
-
             for context_sentence in context_sentences:
                 score = self._sentence_similarity(
                     answer_sentence,
                     context_sentence,
                 )
-
                 best_score = max(best_score, score)
-
             similarities.append(best_score)
 
         final_score = round(
@@ -145,10 +141,10 @@ class FaithfulnessEvaluator(BaseEvaluator):
                 "supported by the source document."
             )
 
-        return EvaluationResult(
+        return [EvaluationResult(
             test_id=test_id,
             metric="faithfulness",
             score=final_score,
             passed=passed,
             reason=reason,
-        )
+        )]

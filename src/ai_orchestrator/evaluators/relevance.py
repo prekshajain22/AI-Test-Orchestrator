@@ -97,34 +97,21 @@ class RelevanceEvaluator(BaseEvaluator):
         question: str,
         answer: str,
         context: str,
-    ) -> EvaluationResult:
+    ) -> list[EvaluationResult]:
         """
         Compare question intent with AI response.
         """
 
-        question_keywords = self._extract_keywords(
-            question
-        )
-
+        question_keywords = self._extract_keywords(question)
         answer_keywords = self._expand_keywords(
             self._extract_keywords(answer)
         )
 
+        matched_keywords = question_keywords.intersection(answer_keywords)
 
-        matched_keywords = question_keywords.intersection(
-            answer_keywords
-        )
-
-
-        score = (
-            len(matched_keywords)
-            /
-            max(len(question_keywords), 1)
-        )
-
+        score = len(matched_keywords) / max(len(question_keywords), 1)
 
         passed = score >= 0.5
-
 
         reason = (
             "Answer is relevant to the question."
@@ -136,11 +123,10 @@ class RelevanceEvaluator(BaseEvaluator):
             )
         )
 
-
-        return EvaluationResult(
+        return [EvaluationResult(
             test_id=test_id,
             metric="relevance",
             score=round(score, 2),
             passed=passed,
             reason=reason,
-        )
+        )]

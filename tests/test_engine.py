@@ -73,22 +73,24 @@ def test_engine_result_score_in_valid_range():
 
 def test_hallucination_passes_when_answer_matches_context():
     ev = HallucinationEvaluator()
-    result = ev.evaluate(
+    results = ev.evaluate(
         test_id="t1",
         question="What is the policy?",
         answer="Employees get 25 days annual leave per year.",
         context="Employees are entitled to 25 days of annual leave per year.",
     )
+    result = results[0]
     assert result.score > 0.5
     assert result.metric == "hallucination"
 
 
 def test_hallucination_fails_when_answer_diverges_from_context():
     ev = HallucinationEvaluator()
-    result = ev.evaluate(
+    results = ev.evaluate(
         test_id="t1",
         question="What is the policy?",
         answer="Employees get unlimited paid vacation and free cars.",
         context="Employees work standard 9-5 hours.",
     )
+    result = results[0]
     assert result.score < 0.7

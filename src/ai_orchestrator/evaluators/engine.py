@@ -30,13 +30,13 @@ class EvaluationEngine:
         results = []
 
         for evaluator in self._evaluators:
-            result = evaluator.evaluate(
+            # evaluate() returns list[EvaluationResult] — flatten into one list.
+            partial = evaluator.evaluate(
                 test_id=test_id,
                 question=question,
                 answer=answer,
                 context=context,
             )
-
-            results.append(result)
+            results.extend(partial)
 
         return results
