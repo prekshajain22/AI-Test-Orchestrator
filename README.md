@@ -30,6 +30,8 @@ cp .env.example .env   # then fill in GEMINI_API_KEY (or HF_API_KEY if using Hug
 python scripts/run_tests.py
 ```
 
+![Tests](https://github.com/prekshajain22/AI-Test-Orchestrator/actions/workflows/tests.yml/badge.svg)
+
 Reports are written to `reports/json/`, `reports/html/`, and `reports/pdf/`.
 
 ## Configuration
