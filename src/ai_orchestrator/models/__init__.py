@@ -5,6 +5,8 @@ from ai_orchestrator.models.evaluation import EvaluationResult
 from ai_orchestrator.models.execution_result import TestExecutionResult
 from ai_orchestrator.models.execution_summary import ExecutionSummary, MetricStats
 from ai_orchestrator.models.execution_metadata import ExecutionMetadata
+from ai_orchestrator.models.chunk import Chunk
+from ai_orchestrator.models.retrieval import RetrievedChunk
 
 __all__ = [
     "PromptTestCase",
@@ -15,4 +17,6 @@ __all__ = [
     "ExecutionSummary",
     "MetricStats",
     "ExecutionMetadata",
+    "Chunk",
+    "RetrievedChunk",
 ]

@@ -19,6 +19,7 @@ def load_prompt_tests(file_path: str) -> list[PromptTestCase]:
                 question=item["question"],
                 expected_answer=item.get("expected_answer", ""),
                 source_document=item["source_document"],
+                use_rag=bool(item.get("use_rag", False)),
             )
         )
 

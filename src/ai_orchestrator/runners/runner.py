@@ -34,6 +34,7 @@ class TestRunner:
             provider_name=config.provider,
             test_suites=config.test_suites,
             evaluators=config.evaluators,
+            rag_config=config.rag,
         )
         self.report_manager = ReportManager(reports=config.reports)
 

@@ -21,3 +21,16 @@ reports:
   - json
   - html
   - pdf
+
+# RAG (Retrieval-Augmented Generation) settings.
+# When enabled: true the execution service chunks each source document and
+# uses a TF-IDF retriever to select only the top_k most relevant passages
+# as LLM context instead of passing the entire document.
+#
+# Set enabled: false (the default) to keep the original full-document
+# behaviour.  Individual test cases can still opt into RAG by setting
+# use_rag: true in their YAML entry regardless of this global flag.
+rag:
+  enabled: false
+  top_k: 3
+  retriever: tfidf
