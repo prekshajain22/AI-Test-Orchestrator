@@ -2,6 +2,7 @@ import requests
 
 from ai_orchestrator.config.settings import settings
 from ai_orchestrator.providers.base import LLMClient
+from ai_orchestrator.prompts import render_qa_prompt
 
 
 class HuggingFaceClient(LLMClient):
@@ -24,21 +25,7 @@ class HuggingFaceClient(LLMClient):
     def ask(self, question: str, context: str) -> str:
         """Send a question and context to the model."""
 
-        prompt = f"""
-You are an HR assistant.
-
-Answer ONLY using the supplied context.
-If the answer is not present in the context, say:
-"I cannot find that information in the provided policy."
-
-Context:
-{context}
-
-Question:
-{question}
-
-Answer:
-"""
+        prompt = render_qa_prompt(question, context)
 
         payload = {
             "inputs": prompt,

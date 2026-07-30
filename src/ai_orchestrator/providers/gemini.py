@@ -2,6 +2,7 @@ from google import genai
 
 from ai_orchestrator.providers.base import LLMClient, ProviderRateLimitError
 from ai_orchestrator.config.settings import settings
+from ai_orchestrator.prompts import render_qa_prompt
 from google.genai.errors import ClientError
 
 class GeminiProvider(LLMClient):
@@ -15,15 +16,7 @@ class GeminiProvider(LLMClient):
 
     def ask(self, question: str, context: str) -> str:
 
-        prompt = f"""
-        Answer the question using only the provided context.
-
-        Context:
-        {context}
-
-        Question:
-        {question}
-        """
+        prompt = render_qa_prompt(question, context)
 
         try:
             response = self.client.models.generate_content(

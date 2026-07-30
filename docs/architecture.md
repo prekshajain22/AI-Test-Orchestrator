@@ -71,7 +71,6 @@ Being upfront about the current gaps rather than letting the docs overstate thin
 - Execution is fully sequential — no concurrency, no caching of LLM responses across runs.
 - No CI configured yet — tests exist (~30 in `tests/`) but nothing runs them automatically on push.
 - No retry/backoff on provider network calls.
-- Provider error handling has a known gap: rate-limit errors from Gemini are currently returned as response text rather than raised, which can pollute evaluation scoring — this is on the fix list.
 
 ## Roadmap
 
