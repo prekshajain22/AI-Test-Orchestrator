@@ -1,6 +1,6 @@
 from google import genai
 
-from ai_orchestrator.providers.base import LLMClient
+from ai_orchestrator.providers.base import LLMClient, ProviderRateLimitError
 from ai_orchestrator.config.settings import settings
 from google.genai.errors import ClientError
 
@@ -35,6 +35,9 @@ class GeminiProvider(LLMClient):
 
         except ClientError as e:
             if e.code == 429:
-                return "LLM quota exceeded. Please check provider limits."
+                raise ProviderRateLimitError(
+                    "Gemini API quota exceeded (HTTP 429). "
+                    "Please check provider limits."
+                ) from e
 
             raise

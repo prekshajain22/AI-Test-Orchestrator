@@ -367,25 +367,32 @@ def _render_metric_table(summary: ExecutionSummary) -> str:
 
 
 def _render_test_card(result: TestExecutionResult) -> str:
-    overall_passed = all(e.passed for e in result.evaluations)
+    overall_passed = result.passed
     card_cls = "test-card" if overall_passed else "test-card is-failed"
 
-    eval_rows = ""
-    for e in result.evaluations:
-        eval_rows += (
-            "<tr>"
-            f"<td>{e.metric}</td>"
-            f"<td>{_score_bar(e.score)}</td>"
-            f"<td>{_pill(e.passed)}</td>"
-            f"<td>{e.reason}</td>"
-            "</tr>"
+    if result.error:
+        eval_table = (
+            f'<div class="empty-state">Provider error: {result.error}</div>'
+        )
+    else:
+        eval_rows = ""
+        for e in result.evaluations:
+            eval_rows += (
+                "<tr>"
+                f"<td>{e.metric}</td>"
+                f"<td>{_score_bar(e.score)}</td>"
+                f"<td>{_pill(e.passed)}</td>"
+                f"<td>{e.reason}</td>"
+                "</tr>"
+            )
+
+        eval_table = (
+            "<table><thead><tr>"
+            "<th>Metric</th><th>Score</th><th>Status</th><th>Reason</th>"
+            f"</tr></thead><tbody>{eval_rows}</tbody></table>"
         )
 
-    eval_table = (
-        "<table><thead><tr>"
-        "<th>Metric</th><th>Score</th><th>Status</th><th>Reason</th>"
-        f"</tr></thead><tbody>{eval_rows}</tbody></table>"
-    )
+    answer_text = result.answer if not result.error else "(no answer — provider error)"
 
     return f"""
     <div class="{card_cls}">
@@ -397,7 +404,7 @@ def _render_test_card(result: TestExecutionResult) -> str:
             <div class="qa-label">Question</div>
             <div class="qa-text">{result.question}</div>
             <div class="qa-label">Answer</div>
-            <div class="qa-text">{result.answer}</div>
+            <div class="qa-text">{answer_text}</div>
             <div class="qa-label" style="margin-top:14px;">Evaluations</div>
             {eval_table}
         </div>
@@ -406,9 +413,7 @@ def _render_test_card(result: TestExecutionResult) -> str:
 
 
 def _render_failed_tests(results: list[TestExecutionResult]) -> str:
-    failed_results = [
-        r for r in results if not all(e.passed for e in r.evaluations)
-    ]
+    failed_results = [r for r in results if not r.passed]
 
     if not failed_results:
         return '<div class="empty-state">No failed tests. All tests passed.</div>'

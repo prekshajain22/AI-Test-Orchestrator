@@ -1,158 +1,82 @@
-# AI-Test-Orchestrator
+# AI Test Orchestrator
 
-> Intelligent AI Quality Engineering Framework for Testing LLM & RAG Applications
+A learning project building an AI Quality Engineering framework from first principles: testing LLM-based applications the way a QA engineer would test any other system — with structured test cases, ground-truth source documents, automated evaluation, and repeatable reports.
 
-![Status](https://img.shields.io/badge/status-In%20Development-blue)
-![Python](https://img.shields.io/badge/Python-3.x-green)
-![License](https://img.shields.io/badge/license-MIT-orange)
+This is my first hands-on AI engineering project, built and documented as I go. See [`docs/learning-journal.md`](docs/learning-journal.md) for the day-by-day build log, and [`docs/architecture.md`](docs/architecture.md) for the technical design.
 
----
+## What this actually does today
 
-# Overview
+Given a set of questions, a source document (ground truth), and an LLM provider:
 
-AI Test Orchestrator is an open-source framework for evaluating the quality, reliability, and trustworthiness of AI-powered applications.
+1. Loads test cases from YAML (`sample_data/prompts/`)
+2. Loads the matching source document as context
+3. Sends the question + context to an LLM provider (Gemini or Hugging Face)
+4. Scores the response against three evaluators (see below)
+5. Generates JSON, HTML, and PDF reports with pass/fail rates and per-metric breakdowns
 
-The project applies Quality Engineering principles to Large Language Models (LLMs) and Retrieval-Augmented Generation (RAG) systems by automating prompt testing, hallucination detection, answer evaluation, and regression testing.
+## Evaluators — hand-rolled by design, for now
 
-The goal is to help engineering teams build confidence before deploying AI applications into production.
+The three evaluators (`hallucination`, `relevance`, `faithfulness`) are **hand-rolled lexical-overlap heuristics** — stopword filtering + set intersection between the answer and the source context. No embeddings, no LLM-as-judge, no DeepEval/Ragas yet.
 
----
+That's intentional at this stage: I wanted to understand _what these metrics actually measure_ by implementing naive versions myself before reaching for a library that does it for me. **DeepEval and Ragas integration is planned next** (see roadmap in `docs/architecture.md`) — this README will be updated when that lands, and the current heuristics will move behind the same evaluator interface rather than being thrown away.
 
-# Vision
+## Setup
 
-Traditional software has automated testing.
+```bash
+git clone https://github.com/prekshajain22/AI-Test-Orchestrator.git
+cd AI-Test-Orchestrator
+pip install -r requirements.txt
+cp .env.example .env   # then fill in GEMINI_API_KEY (or HF_API_KEY if using Hugging Face)
+python scripts/run_tests.py
+```
 
-AI applications should too.
+Reports are written to `reports/json/`, `reports/html/`, and `reports/pdf/`.
 
-AI Test Orchestrator aims to provide a repeatable, automated approach for validating AI systems using measurable quality metrics.
+## Configuration
 
----
+All runs are controlled by `config/execution.yaml`:
 
-# Objectives
+```yaml
+provider:
+  name: gemini
+test_suites:
+  - sample_data/prompts/hr_questions.yaml
+evaluators:
+  - hallucination
+  - relevance
+  - faithfulness
+reports:
+  - json
+  - html
+  - pdf
+```
 
-- Evaluate LLM responses
-- Detect hallucinations
-- Test prompt quality
-- Measure answer relevancy
-- Evaluate RAG systems
-- Produce quality reports
-- Support AI regression testing
+## Project structure
 
----
+```
+config/          Central run configuration
+docs/            architecture.md, learning-journal.md
+sample_data/     Source documents + prompt test cases used as ground truth
+src/ai_orchestrator/
+  config/        Settings + config loading
+  evaluators/    Pluggable evaluation strategies (hallucination, relevance, faithfulness)
+  loaders/       Document + prompt-test-case loaders
+  models/        Dataclasses for every domain object
+  providers/     Pluggable LLM providers (Gemini, Hugging Face)
+  reporting/     JSON/HTML/PDF report generation
+  runners/       Top-level orchestration
+  services/      End-to-end execution service
+tests/           ~30 unit tests across loaders, evaluators, providers, reporting
+```
 
-# Planned Features
+## Tech stack
 
-## Prompt Testing
+- Python 3.10+, dataclasses, `pytest`
+- Google Gemini API / Hugging Face Inference API
+- PyYAML for test-case and config definitions
+- Playwright for PDF report rendering
+- **Planned:** DeepEval, Ragas, GitHub Actions CI
 
-- Prompt execution
-- Prompt regression
-- Edge case prompts
-- Adversarial prompts
+## Status
 
----
-
-## AI Evaluation
-
-- Hallucination Detection
-- Answer Relevancy
-- Faithfulness
-- Bias Detection
-- Toxicity Detection
-
----
-
-## RAG Evaluation
-
-- Retrieval Quality
-- Context Precision
-- Context Recall
-- Answer Correctness
-
----
-
-## Reporting
-
-- HTML Reports
-- JSON Reports
-- PDF Reports
-- Evaluation Dashboard
-
----
-
-# Architecture (High Level)
-
-Test Cases
-
-↓
-
-LLM
-
-↓
-
-Evaluation Engine
-
-↓
-
-Reports
-
----
-
-# Tech Stack
-
-- Python
-- Hugging Face
-- Promptfoo
-- DeepEval
-- Ragas
-- Pytest
-- GitHub Actions
-
----
-
-# Roadmap
-
-| Version | Goal                    |
-| ------- | ----------------------- |
-| v0.1    | Foundation              |
-| v0.2    | Prompt Testing          |
-| v0.3    | DeepEval                |
-| v0.4    | Hallucination Detection |
-| v0.5    | RAG Evaluation          |
-| v0.6    | Reporting               |
-| v1.0    | Production Ready        |
-
----
-
-# Repository Structure
-
-docs/
-
-reports/
-
-sample_data/
-
-src/
-
-tests/
-
-examples/
-
----
-
-# Current Status
-
-🚧 Project under active development.
-
----
-
-# Learning Journey
-
-This repository documents my transition from traditional Quality Engineering into AI Quality Engineering.
-
-The project is being built incrementally, following software engineering best practices, with every feature documented and tested.
-
----
-
-# License
-
-MIT
+Early-stage learning project — not production-ready. See `docs/architecture.md` for a current honest assessment of what's implemented vs. planned, including known limitations.

@@ -20,9 +20,7 @@ class ExecutionSummaryBuilder:
     ) -> ExecutionSummary:
         total = len(results)
 
-        passed = sum(
-            1 for r in results if all(e.passed for e in r.evaluations)
-        )
+        passed = sum(1 for r in results if r.passed)
         failed = total - passed
         pass_rate = round((passed / total) * 100, 1) if total > 0 else 0.0
 

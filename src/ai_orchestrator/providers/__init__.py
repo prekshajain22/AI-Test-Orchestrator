@@ -1,4 +1,8 @@
-from ai_orchestrator.providers.base import LLMClient
+from ai_orchestrator.providers.base import (
+    LLMClient,
+    ProviderError,
+    ProviderRateLimitError,
+)
 
 
 class ProviderRegistry:
@@ -25,6 +29,8 @@ class ProviderFactory:
 
 __all__ = [
     "LLMClient",
+    "ProviderError",
+    "ProviderRateLimitError",
     "ProviderRegistry",
     "ProviderFactory",
 ]

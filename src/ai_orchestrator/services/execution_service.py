@@ -4,7 +4,8 @@ from ai_orchestrator.evaluators.engine import EvaluationEngine
 from ai_orchestrator.evaluators import EvaluationFactory
 from ai_orchestrator.loaders import load_document, load_prompt_tests
 from ai_orchestrator.models import TestExecutionResult
-from ai_orchestrator.providers.factory import ProviderFactory
+from ai_orchestrator.providers import ProviderFactory
+from ai_orchestrator.providers.base import ProviderError
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,23 @@ class ExecutionService:
             logger.info("Running test: %s", test.id)
 
             context = load_document(test.source_document)
-            answer = self.provider.ask(test.question, context)
+
+            try:
+                answer = self.provider.ask(test.question, context)
+            except ProviderError as e:
+                logger.error(
+                    "  [ERROR] Provider failed for test %s: %s", test.id, e
+                )
+                results.append(
+                    TestExecutionResult(
+                        test_id=test.id,
+                        question=test.question,
+                        answer="",
+                        evaluations=[],
+                        error=str(e),
+                    )
+                )
+                continue
 
             logger.debug("Question: %s", test.question)
             logger.debug("Answer:   %s", answer)
