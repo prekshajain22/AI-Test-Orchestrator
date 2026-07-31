@@ -166,6 +166,32 @@ tests/                        193 unit + integration tests
 
 ---
 
+## Sample data — fully data-driven
+
+The framework is entirely data-driven. You can change, add, or replace anything in `sample_data/` **without touching any code or config**.
+
+| Change                          | What to do                                                  |
+| ------------------------------- | ----------------------------------------------------------- |
+| Replace source documents        | Drop new `.md` / `.txt` files into `sample_data/documents/` |
+| Edit or add test questions      | Edit a YAML file in `sample_data/prompts/`                  |
+| Use a different test suite      | Set `TEST_SUITES=path/to/suite.yaml` in `.env`              |
+| Run multiple suites in one pass | `TEST_SUITES=suite_a.yaml,suite_b.yaml` (comma-separated)   |
+
+**Minimum YAML structure for a test suite:**
+
+```yaml
+tests:
+  - id: my_test
+    question: "What is the policy on X?"
+    source_document: sample_data/documents/policy.md
+    expected_answer: "Optional — used for RAG retrieval quality metrics"
+    use_rag: false # optional, defaults to false
+```
+
+Swap the entire domain (HR → Legal → Medical → Finance) by replacing the documents and YAML — no code, no evaluator, no config file change required.
+
+---
+
 ## CI
 
 Tests run automatically on every push and pull request via GitHub Actions (`.github/workflows/tests.yml`).
