@@ -24,10 +24,8 @@ class TestRunner:
     ReportManager. The runner only knows the sequence — not the details.
     """
 
-    EXECUTION_CONFIG = "config/execution.yaml"
-
     def __init__(self):
-        config = load_execution_config(self.EXECUTION_CONFIG)
+        config = load_execution_config()
         self.config = config
 
         self.execution_service = ExecutionService(

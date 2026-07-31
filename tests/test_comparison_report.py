@@ -25,8 +25,8 @@ from ai_orchestrator.runners.comparison_runner import RunResult
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
 
-def _run_config(name: str, provider: str = "gemini", retriever: str = "tfidf") -> ComparisonRunConfig:
-    return ComparisonRunConfig(name=name, provider=provider, retriever=retriever, top_k=3)
+def _run_config(name: str, retriever: str = "tfidf") -> ComparisonRunConfig:
+    return ComparisonRunConfig(name=name, retriever=retriever, top_k=3)
 
 
 def _eval(test_id: str, metric: str, score: float) -> EvaluationResult:
@@ -45,8 +45,8 @@ def _result(test_id: str, scores: dict[str, float]) -> TestExecutionResult:
     )
 
 
-def _run_result(name: str, results: list[TestExecutionResult], **kwargs) -> RunResult:
-    return RunResult(run_config=_run_config(name, **kwargs), results=results)
+def _run_result(name: str, results: list[TestExecutionResult], retriever: str = "tfidf") -> RunResult:
+    return RunResult(run_config=_run_config(name, retriever=retriever), results=results)
 
 
 # ---------------------------------------------------------------------------
@@ -175,14 +175,14 @@ def test_compute_pass_rates_partial():
 
 def _two_run_results() -> list[RunResult]:
     return [
-        _run_result("Gemini + TF-IDF", [
+        _run_result("TF-IDF", [
             _result("t1", {"hallucination": 0.9, "relevance": 0.8}),
             _result("t2", {"hallucination": 0.7, "relevance": 0.6}),
-        ], provider="gemini", retriever="tfidf"),
-        _run_result("Gemini + BM25", [
+        ], retriever="tfidf"),
+        _run_result("BM25", [
             _result("t1", {"hallucination": 0.95, "relevance": 0.85}),
             _result("t2", {"hallucination": 0.75, "relevance": 0.65}),
-        ], provider="gemini", retriever="bm25"),
+        ], retriever="bm25"),
     ]
 
 
@@ -194,8 +194,8 @@ def test_render_is_valid_html():
 
 def test_render_contains_run_names():
     html = _render(_two_run_results())
-    assert "Gemini + TF-IDF" in html
-    assert "Gemini + BM25" in html
+    assert "TF-IDF" in html
+    assert "BM25" in html
 
 
 def test_render_contains_metric_names():
@@ -235,8 +235,8 @@ def test_comparison_report_file_contains_run_names(tmp_path):
     report = ComparisonReport(output_dir=str(tmp_path))
     path = report.generate(_two_run_results())
     html = path.read_text(encoding="utf-8")
-    assert "Gemini + TF-IDF" in html
-    assert "Gemini + BM25" in html
+    assert "TF-IDF" in html
+    assert "BM25" in html
 
 
 def test_comparison_report_output_dir_created(tmp_path):

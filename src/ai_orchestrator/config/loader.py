@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
-from pathlib import Path
 
-import yaml
+from ai_orchestrator.config.settings import settings
 
 
 @dataclass
@@ -9,18 +8,10 @@ class RagConfig:
     """
     RAG (Retrieval-Augmented Generation) retrieval settings.
 
-    Controls whether ExecutionService chunks source documents and uses
-    a retriever to select only the most relevant passages as LLM context,
-    rather than always passing the entire document.
-
-    Attributes:
-        enabled: Global on/off switch.  When False every test case uses the
-            full document as context (legacy behaviour).  Individual
-            PromptTestCases can still opt in by setting use_rag=True even
-            when the global flag is False.
-        top_k: How many chunks the retriever should return per question.
-        retriever: Which retrieval strategy to use.  Currently only
-            "tfidf" is supported.
+    These values are sourced from ``settings`` (i.e. ``.env``):
+      - RAG_ENABLED   → enabled
+      - RAG_TOP_K     → top_k
+      - RAG_RETRIEVER → retriever
     """
 
     enabled: bool = False
@@ -31,12 +22,10 @@ class RagConfig:
 @dataclass
 class ExecutionConfig:
     """
-    Combined execution configuration loaded from config/execution.yaml.
-      - provider: which LLM provider to use
-      - test_suites: any number of prompt test suite YAML files
-      - evaluators: which evaluators to run against each response
-      - reports: which report formats to generate
-      - rag: RAG retrieval settings (opt-in, disabled by default)
+    Combined execution configuration.
+
+    All fields are populated from ``settings`` (i.e. ``.env``).
+    No YAML file is needed — ``.env`` is the single source of truth.
     """
 
     __test__ = False  # Prevent pytest from collecting this as a test class
@@ -48,27 +37,25 @@ class ExecutionConfig:
     rag: RagConfig = field(default_factory=RagConfig)
 
 
-def load_execution_config(path: str = "config/execution.yaml") -> ExecutionConfig:
-    """Load provider, test suites, evaluators, and report formats from YAML."""
-    data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+def load_execution_config() -> ExecutionConfig:
+    """
+    Build an ExecutionConfig from environment / ``.env`` settings.
 
-    provider_data = data.get("provider", "gemini")
-    if isinstance(provider_data, dict):
-        provider = provider_data.get("name", "gemini")
-    else:
-        provider = provider_data
+    Every value comes from the ``Settings`` singleton — ``.env`` is the
+    single source of truth.  No YAML file is read.
 
-    rag_data = data.get("rag", {}) or {}
-    rag_config = RagConfig(
-        enabled=bool(rag_data.get("enabled", False)),
-        top_k=int(rag_data.get("top_k", 3)),
-        retriever=str(rag_data.get("retriever", "tfidf")),
-    )
-
+    To change provider, test suites, evaluators, reports or RAG settings
+    edit ``.env`` (or export the corresponding environment variable) and
+    restart the process.
+    """
     return ExecutionConfig(
-        provider=provider,
-        test_suites=data.get("test_suites", []),
-        evaluators=data.get("evaluators", []),
-        reports=data.get("reports", []),
-        rag=rag_config,
+        provider=settings.provider,
+        test_suites=list(settings.test_suites),
+        evaluators=list(settings.evaluators),
+        reports=list(settings.reports),
+        rag=RagConfig(
+            enabled=settings.rag_enabled,
+            top_k=settings.rag_top_k,
+            retriever=settings.rag_retriever,
+        ),
     )

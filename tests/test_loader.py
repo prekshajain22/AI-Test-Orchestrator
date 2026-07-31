@@ -1,3 +1,9 @@
+"""
+Tests for loaders and configuration.
+
+Config tests now verify that settings.py reads from environment variables
+(the single source of truth) rather than from YAML files.
+"""
 import textwrap
 
 import pytest
@@ -20,27 +26,6 @@ PROMPT_YAML = textwrap.dedent("""\
       - id: t2
         question: "Hybrid working?"
         source_document: "docs/hybrid.md"
-""")
-
-EXECUTION_YAML = textwrap.dedent("""\
-    provider:
-      name: gemini
-    test_suites:
-      - sample_data/prompts/hr_questions.yaml
-    evaluators:
-      - hallucination
-      - relevance
-    reports:
-      - json
-      - html
-""")
-
-EXECUTION_YAML_STRING_PROVIDER = textwrap.dedent("""\
-    provider: gemini
-    test_suites:
-      - sample_data/prompts/hr_questions.yaml
-    evaluators:
-      - hallucination
 """)
 
 
@@ -79,100 +64,93 @@ def test_load_document_returns_content(tmp_path):
     assert "25 days" in content
 
 
-# ── Config loader ──────────────────────────────────────────────
+# ── ExecutionConfig (settings-based) ──────────────────────────
+# load_execution_config() reads from settings which reads from .env.
+# We test it via monkeypatching the settings singleton.
 
-def test_load_execution_config(tmp_path):
-    p = tmp_path / "execution.yaml"
-    p.write_text(EXECUTION_YAML)
-    config = load_execution_config(str(p))
+def test_load_execution_config_returns_execution_config(monkeypatch):
+    """load_execution_config() returns an ExecutionConfig instance."""
+    config = load_execution_config()
     assert isinstance(config, ExecutionConfig)
-    assert config.provider == "gemini"
-    assert config.test_suites == ["sample_data/prompts/hr_questions.yaml"]
-    assert config.evaluators == ["hallucination", "relevance"]
-    assert config.reports == ["json", "html"]
 
 
-def test_load_execution_config_supports_multiple_test_suites(tmp_path):
-    p = tmp_path / "execution.yaml"
-    p.write_text(
-        textwrap.dedent("""\
-            provider:
-              name: gemini
-            test_suites:
-              - suite_one.yaml
-              - suite_two.yaml
-              - suite_three.yaml
-            evaluators:
-              - hallucination
-        """)
+def test_load_execution_config_provider_comes_from_settings(monkeypatch):
+    """provider field is read from settings — patch the name inside loader."""
+    import ai_orchestrator.config.loader as loader_mod
+    from ai_orchestrator.config.settings import Settings
+    monkeypatch.setattr(loader_mod, "settings", Settings(provider="test-provider"))
+    assert loader_mod.load_execution_config().provider == "test-provider"
+
+
+def test_load_execution_config_test_suites_come_from_settings(monkeypatch):
+    import ai_orchestrator.config.loader as loader_mod
+    from ai_orchestrator.config.settings import Settings
+    monkeypatch.setattr(
+        loader_mod, "settings",
+        Settings(test_suites=("suite_a.yaml", "suite_b.yaml")),
     )
-    config = load_execution_config(str(p))
-    assert len(config.test_suites) == 3
+    assert loader_mod.load_execution_config().test_suites == ["suite_a.yaml", "suite_b.yaml"]
 
 
-def test_load_execution_config_accepts_string_provider(tmp_path):
-    p = tmp_path / "execution.yaml"
-    p.write_text(EXECUTION_YAML_STRING_PROVIDER)
-    config = load_execution_config(str(p))
-    assert config.provider == "gemini"
-    assert config.evaluators == ["hallucination"]
+def test_load_execution_config_evaluators_come_from_settings(monkeypatch):
+    import ai_orchestrator.config.loader as loader_mod
+    from ai_orchestrator.config.settings import Settings
+    monkeypatch.setattr(
+        loader_mod, "settings",
+        Settings(evaluators=("hallucination", "relevance")),
+    )
+    assert loader_mod.load_execution_config().evaluators == ["hallucination", "relevance"]
 
 
-# ── RagConfig parsing ─────────────────────────────────────────────────────────
+def test_load_execution_config_reports_come_from_settings(monkeypatch):
+    import ai_orchestrator.config.loader as loader_mod
+    from ai_orchestrator.config.settings import Settings
+    monkeypatch.setattr(loader_mod, "settings", Settings(reports=("json", "html")))
+    assert loader_mod.load_execution_config().reports == ["json", "html"]
 
-def test_load_execution_config_rag_defaults_to_disabled(tmp_path):
-    """When the YAML has no 'rag' key, RagConfig should default to disabled."""
-    p = tmp_path / "execution.yaml"
-    p.write_text(EXECUTION_YAML)
-    config = load_execution_config(str(p))
+
+# ── RagConfig (via settings) ───────────────────────────────────
+
+def test_load_execution_config_rag_defaults_to_disabled(monkeypatch):
+    import ai_orchestrator.config.loader as loader_mod
+    from ai_orchestrator.config.settings import Settings
+    monkeypatch.setattr(
+        loader_mod, "settings",
+        Settings(rag_enabled=False, rag_top_k=3, rag_retriever="tfidf"),
+    )
+    config = loader_mod.load_execution_config()
     assert isinstance(config.rag, RagConfig)
     assert config.rag.enabled is False
     assert config.rag.top_k == 3
     assert config.rag.retriever == "tfidf"
 
 
-def test_load_execution_config_rag_enabled(tmp_path):
-    """A rag: enabled: true block should set RagConfig.enabled to True."""
-    yaml_text = textwrap.dedent("""\
-        provider: gemini
-        test_suites:
-          - suite.yaml
-        evaluators:
-          - hallucination
-        rag:
-          enabled: true
-          top_k: 5
-          retriever: tfidf
-    """)
-    p = tmp_path / "execution.yaml"
-    p.write_text(yaml_text)
-    config = load_execution_config(str(p))
+def test_load_execution_config_rag_enabled_true(monkeypatch):
+    import ai_orchestrator.config.loader as loader_mod
+    from ai_orchestrator.config.settings import Settings
+    monkeypatch.setattr(
+        loader_mod, "settings",
+        Settings(rag_enabled=True, rag_top_k=5, rag_retriever="bm25"),
+    )
+    config = loader_mod.load_execution_config()
     assert config.rag.enabled is True
     assert config.rag.top_k == 5
-    assert config.rag.retriever == "tfidf"
+    assert config.rag.retriever == "bm25"
 
 
-def test_load_execution_config_rag_partial_overrides(tmp_path):
-    """Unspecified rag keys fall back to their defaults."""
-    yaml_text = textwrap.dedent("""\
-        provider: gemini
-        test_suites: []
-        evaluators: []
-        rag:
-          top_k: 7
-    """)
-    p = tmp_path / "execution.yaml"
-    p.write_text(yaml_text)
-    config = load_execution_config(str(p))
-    assert config.rag.enabled is False   # default
-    assert config.rag.top_k == 7
-    assert config.rag.retriever == "tfidf"  # default
+def test_load_execution_config_rag_custom_top_k(monkeypatch):
+    import ai_orchestrator.config.loader as loader_mod
+    from ai_orchestrator.config.settings import Settings
+    monkeypatch.setattr(
+        loader_mod, "settings",
+        Settings(rag_enabled=False, rag_top_k=7, rag_retriever="tfidf"),
+    )
+    assert loader_mod.load_execution_config().rag.top_k == 7
 
 
-# ── prompt_loader use_rag field ───────────────────────────────────────────────
+# ── prompt_loader use_rag field ────────────────────────────────
 
 def test_load_prompt_tests_use_rag_defaults_false(tmp_path):
-    """Test cases without use_rag should default to False."""
     p = tmp_path / "prompts.yaml"
     p.write_text(PROMPT_YAML)
     tests = load_prompt_tests(str(p))
@@ -180,7 +158,6 @@ def test_load_prompt_tests_use_rag_defaults_false(tmp_path):
 
 
 def test_load_prompt_tests_use_rag_true(tmp_path):
-    """Test cases with use_rag: true should set the flag."""
     yaml_text = textwrap.dedent("""\
         tests:
           - id: t_rag

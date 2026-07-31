@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, trunk]
   pull_request:
-    branches: [main]
+    branches: [main, trunk]
 
 jobs:
   test:
@@ -19,8 +19,32 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Run tests
-        run: pytest -q
+        # All 193 tests mock the LLM provider — no real API key is ever called.
+        # The env vars below just satisfy Settings initialisation; their values
+        # are never sent to Gemini or Hugging Face during the test run.
+        env:
+          PROVIDER: gemini
+          GEMINI_API_KEY: ci-placeholder
+          HF_API_KEY: ci-placeholder
+          MODEL_NAME: models/gemini-flash-lite-latest
+          TEMPERATURE: "0"
+          MAX_TOKENS: "256"
+          TEST_SUITES: sample_data/prompts/hr_questions.yaml
+          EVALUATORS: hallucination,relevance,faithfulness
+          REPORTS: json,html,pdf
+          RAG_ENABLED: "false"
+          RAG_TOP_K: "3"
+          RAG_RETRIEVER: tfidf
+        run: pytest -q --tb=short

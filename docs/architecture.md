@@ -2,88 +2,199 @@
 
 ## Overview
 
-AI Test Orchestrator is a modular framework for testing LLM-based applications: pluggable LLM providers, pluggable evaluators, and a config-driven runner that ties them together, producing structured reports.
+AI Test Orchestrator is a modular framework for testing LLM-based applications: pluggable LLM providers, pluggable retrievers, pluggable evaluators, and a config-driven runner that ties them together, producing structured reports.
 
 The goal is to apply the same discipline traditional QA applies to deterministic systems — repeatable test cases, ground-truth comparison, pass/fail reporting — to a domain where "correct" is fuzzier and has to be scored rather than asserted.
 
-## Current pipeline (implemented)
+---
+
+## Configuration: single source of truth
+
+**All runtime configuration lives in `.env`** (loaded into `Settings` via `config/settings.py`). No YAML file is read for configuration — YAML is only used for data definitions (prompt test cases, comparison retriever lists).
 
 ```
-config/execution.yaml
-        |
-        v
-TestRunner  ──loads config, builds services, triggers run──
-        |
-        v
+.env
+ └── Settings (config/settings.py)
+       ├── provider, gemini_api_key, hf_api_key, model_name
+       ├── temperature, max_tokens
+       ├── test_suites, evaluators, reports         ← what to run
+       └── rag_enabled, rag_top_k, rag_retriever    ← RAG settings
+```
+
+`load_execution_config()` (config/loader.py) reads `Settings` and returns an `ExecutionConfig` dataclass — no file path argument needed.
+
+---
+
+## Pipeline
+
+```
+Settings (.env)
+     │
+     ▼
+TestRunner
+     │  builds ExecutionService + ReportManager from Settings
+     │
+     ▼
 ExecutionService
-        |
-        ├─ loads test cases (YAML) ──> PromptTestCase
-        ├─ loads source document ───> ground-truth context
-        ├─ calls LLM provider ──────> AIResponse
-        └─ runs EvaluationEngine ───> EvaluationResult[]
-        |
-        v
-ReportManager ──builds ExecutionSummary, writes JSON/HTML/PDF──
+     │
+     ├─ load_prompt_tests()    → list[PromptTestCase]
+     │
+     ├─ for each test:
+     │    ├─ load_document()           → full document text
+     │    ├─ [if RAG] chunk_document() → list[Chunk]
+     │    │           retriever.retrieve() → list[RetrievedChunk]
+     │    │           → RetrievalMetrics (hit@k, MRR, coverage, avg_sim)
+     │    ├─ provider.ask()            → answer string
+     │    └─ engine.evaluate()         → list[EvaluationResult]
+     │
+     ▼
+ReportManager
+     └─ JSON / HTML / PDF reports  (ExecutionSummary + per-test detail)
 ```
 
-### Providers
+### Comparison runs
 
-`LLMClient` is an abstract base class with one method, `ask(question, context) -> str`. Two implementations exist today: `GeminiProvider` and `HuggingFaceClient`. New providers (OpenAI, Azure OpenAI) plug in by implementing the same interface and registering in `ProviderRegistry`.
+```
+config/comparison.yaml   (retriever strategies only)
+     │
+     ▼
+ComparisonRunner
+     └─ runs ExecutionService once per retriever strategy
+     └─ ComparisonReport → reports/comparison/*.html
+                           (side-by-side metric table, ★ BEST badge)
+```
 
-### Evaluators
+### Dashboard
 
-`BaseEvaluator` is an abstract base class with one method, `evaluate(test_id, question, answer, context) -> EvaluationResult`. Three implementations exist today — see "Evaluation Philosophy" below for what they actually do and why.
+```
+reports/json/execution_*.json   (accumulated across all runs)
+     │
+     ▼
+Dashboard
+     └─ reports/dashboard.html
+        (KPI cards, execution history, provider comparison)
+```
 
-### Reporting
+---
 
-`ReportManager` coordinates `JsonReport`, `HtmlReport`, and `PdfReport`, all built from a single `ExecutionSummary` (aggregated pass/fail + per-metric stats) plus the raw `TestExecutionResult` list. Every report is tagged with `ExecutionMetadata` (execution ID, timestamp, provider, model, temperature, test suite) so any report can be traced back to exactly how it was produced.
+## Providers
 
-## Evaluation philosophy
+`LLMClient` is an abstract base class: `ask(question, context) -> str`.
 
-Three quality dimensions are evaluated today, each scored 0.0–1.0 against a pass threshold:
+| Provider     | Class               | Notes                  |
+| ------------ | ------------------- | ---------------------- |
+| Gemini       | `GeminiProvider`    | via `google-genai` SDK |
+| Hugging Face | `HuggingFaceClient` | via Inference API      |
 
-- **Hallucination** — does the answer contain claims not supported by the source document? Currently measured as: strip stopwords from both answer and context, take the set difference, score by what fraction of answer-words are unsupported.
-- **Relevance** — does the answer address the question asked? Currently measured as keyword overlap (with a small hand-built synonym table) between question and answer.
-- **Faithfulness** — is each sentence in the answer traceable back to a sentence in the context? Currently measured as per-sentence keyword overlap, averaged across the answer.
+Set `PROVIDER=gemini` (or `huggingface`) in `.env`. New providers plug in by implementing `LLMClient` and registering in `ProviderRegistry`.
 
-**These are intentionally naive, hand-rolled implementations.** This is my first AI engineering project, and I built these from scratch — rather than starting with DeepEval or Ragas — specifically to understand what these metrics actually measure before relying on a library to compute them for me. They work as a first pass but have known weaknesses: they penalize correct paraphrasing (different words, same meaning) and can miss hallucinations that happen to reuse source vocabulary.
+---
 
-**Planned:** replace the internals of these three evaluators with DeepEval and/or Ragas implementations behind the same `BaseEvaluator` interface, so the pluggable architecture doesn't need to change — only what's plugged in.
+## Evaluators
 
-Two additional quality dimensions are defined conceptually but have no evaluator yet:
+`BaseEvaluator.evaluate()` returns `list[EvaluationResult]` — a list so that a single evaluator (e.g. `LlmJudgeEvaluator`) can return multiple scored dimensions from one API call. `EvaluationEngine` flattens results from all registered evaluators.
 
-- **Completeness** — does the answer cover all relevant points from the source?
-- **Safety** — does the answer avoid leaking sensitive information it shouldn't (e.g. confidential HR/medical data)?
+| Evaluator                | Type           | Dimensions                                                                                        | Pass threshold |
+| ------------------------ | -------------- | ------------------------------------------------------------------------------------------------- | -------------- |
+| `HallucinationEvaluator` | Heuristic      | `hallucination`                                                                                   | ≥ 0.7          |
+| `RelevanceEvaluator`     | Heuristic      | `relevance`                                                                                       | ≥ 0.5          |
+| `FaithfulnessEvaluator`  | Heuristic      | `faithfulness`                                                                                    | ≥ 0.7          |
+| `LlmJudgeEvaluator`      | LLM-as-a-Judge | `llm_judge_correctness` `llm_judge_completeness` `llm_judge_groundedness` `llm_judge_helpfulness` | ≥ 0.7 each     |
 
-## Decisions
+**Evaluation philosophy:** The three heuristic evaluators are intentionally naive, hand-rolled lexical-overlap implementations — built from scratch rather than using DeepEval/Ragas specifically to understand what these metrics actually measure. They have known weaknesses (they penalise correct paraphrasing; they can miss hallucinations that reuse source vocabulary). They are planned to be replaced with DeepEval/Ragas internals behind the same `BaseEvaluator` interface, so no architecture change is required — only what's plugged in.
 
-**Provider abstraction.** A common `LLMClient` interface was built from the start so the framework can support multiple LLM providers without changing test execution logic. Current providers: Gemini, Hugging Face. Planned: OpenAI, Azure OpenAI.
+`LlmJudgeEvaluator` makes one structured JSON API call per test and returns four scores. Graceful degradation: provider failure → score=0, run never crashes.
 
-**Evaluator abstraction.** Same reasoning as providers — evaluation logic is decoupled from execution logic via `BaseEvaluator`, so the hand-rolled heuristics can be swapped for DeepEval/Ragas without touching `ExecutionService` or the reporting layer.
+---
 
-**Config-driven execution.** A single `config/execution.yaml` controls provider, test suites, evaluators, and report formats, injected into services via constructor arguments rather than read ad hoc throughout the codebase.
+## RAG — Retrieval-Augmented Generation
+
+When `RAG_ENABLED=true` (or a test case sets `use_rag: true`), `ExecutionService` replaces the full-document context with the top-k most relevant chunks retrieved from the document.
+
+```
+chunk_document(text)          →  list[Chunk]   (heading-first, paragraph fallback)
+retriever.retrieve(q, chunks) →  list[RetrievedChunk]  (ranked by score)
+"\n\n".join(rc.chunk.text)    →  context sent to LLM
+```
+
+`BaseRetriever` hierarchy:
+
+```
+BaseRetriever
+     ├── TfidfRetriever          pure Python, default
+     ├── BM25Retriever           pure Python, Okapi BM25
+     ├── SentenceTransformerRetriever   sentence-transformers (optional)
+     ├── FaissRetriever          faiss-cpu + sentence-transformers (optional)
+     └── ChromaRetriever         chromadb (optional)
+```
+
+Heavy-dependency retrievers are lazily imported — the app starts fine without those packages; the `ImportError` only surfaces if you actually try to use them.
+
+**Per-test retrieval metrics** (`RetrievalMetrics`) are stored on `TestExecutionResult.retrieval_metrics` and logged as a `[RETRIEVAL]` line:
+
+| Metric               | Definition                                            |
+| -------------------- | ----------------------------------------------------- |
+| `chunks_retrieved`   | Count of chunks returned (≤ top_k)                    |
+| `chunk_scores`       | Relevance scores, highest first                       |
+| `average_similarity` | Mean chunk score                                      |
+| `hit_at_k`           | ≥ 1 chunk contains ≥ 50% of expected-answer tokens    |
+| `mrr`                | 1/rank of first relevant chunk (Mean Reciprocal Rank) |
+| `context_coverage`   | % of expected-answer vocabulary in retrieved context  |
+
+---
+
+## Reporting
+
+| Report     | Class              | Output                                 |
+| ---------- | ------------------ | -------------------------------------- |
+| JSON       | `JsonReport`       | `reports/json/execution_*.json`        |
+| HTML       | `HtmlReport`       | `reports/html/execution_*.html`        |
+| PDF        | `PdfReport`        | `reports/pdf/execution_*.pdf`          |
+| Comparison | `ComparisonReport` | `reports/comparison/comparison_*.html` |
+| Dashboard  | `Dashboard`        | `reports/dashboard.html`               |
+
+All reports are tagged with `ExecutionMetadata` (execution ID, timestamp, provider, model, temperature, test suite) so every report is fully traceable.
+
+---
+
+## Key design decisions
+
+**`.env` as single source of truth.** Provider, test suites, evaluators, reports, and RAG settings are configured in exactly one place (`.env`). No config duplication across YAML files. YAML is reserved for data definitions that are inherently list-structured (prompt test cases, comparison retriever strategies).
+
+**Provider abstraction.** A common `LLMClient` interface decouples execution from the specific provider so Gemini and Hugging Face are interchangeable. `LlmJudgeEvaluator` always uses the same provider as the main answer-generation step (`settings.provider`), never a hard-coded default.
+
+**Evaluator abstraction.** `BaseEvaluator.evaluate()` returns a list so that multi-dimension evaluators (LLM judge) sit alongside single-dimension heuristics behind the same interface. `EvaluationEngine.evaluate()` returns a flat `list[EvaluationResult]` regardless.
+
+**Retriever abstraction.** `BaseRetriever` follows the same Strategy pattern as providers and evaluators — swap implementations without changing `ExecutionService`.
+
+**Constructor injection.** `ExecutionService` receives provider, evaluators, and RAG config via constructor arguments rather than reading config files itself. This keeps it decoupled, testable, and combinable (e.g. `ComparisonRunner` constructs one `ExecutionService` per retriever strategy).
+
+---
 
 ## Known limitations
 
-Being upfront about the current gaps rather than letting the docs overstate things:
-
-- Evaluators are lexical-overlap heuristics, not semantic/embedding-based (see above).
-- Execution is fully sequential — no concurrency, no caching of LLM responses across runs.
-- No CI configured yet — tests exist (~30 in `tests/`) but nothing runs them automatically on push.
+- Heuristic evaluators are lexical-overlap, not semantic/embedding-based.
+- Execution is sequential — no concurrency, no LLM response caching.
 - No retry/backoff on provider network calls.
+
+---
 
 ## Roadmap
 
-**v0.1 Foundation** — Done: repo setup, provider abstraction, initial docs.
+**v0.1 Foundation** — ✅ Repo setup, provider abstraction, initial docs.
 
-**v0.2 LLM Test Execution** — Done: YAML test cases, document loading, Gemini integration, test runner.
+**v0.2 LLM Test Execution** — ✅ YAML test cases, document loading, Gemini integration, test runner.
 
-**v0.3 Evaluation Engine** — Done (hand-rolled version): hallucination, relevance, faithfulness evaluators; reporting (JSON/HTML/PDF).
+**v0.3 Evaluation Engine** — ✅ Hallucination, relevance, faithfulness evaluators; JSON/HTML/PDF reporting.
 
-**v0.4 Real Evaluation Metrics** — In progress: replace hand-rolled evaluators with DeepEval/Ragas; add completeness and safety evaluators.
+**v0.4 RAG + Retrieval Metrics** — ✅ Chunker, TF-IDF/BM25/ST/FAISS/Chroma retrievers, retrieval metrics (hit@k, MRR, coverage), RAG behind config flag, comparison runner, dashboard.
 
-**v0.5 Multi-Provider + Resilience** — Planned: OpenAI/Azure OpenAI providers, retry/backoff, response caching.
+**v0.5 LLM-as-a-Judge + Single Config Source** — ✅ `LlmJudgeEvaluator` (4 dimensions), `.env` as single source of truth, comparison report HTML, 193 tests.
 
-**v0.6 CI/CD** — Planned: GitHub Actions running the test suite on every push; automated regression runs on a schedule.
+**v0.6 Real Evaluation Metrics** — Planned: replace heuristic evaluators with DeepEval/Ragas behind the same `BaseEvaluator` interface.
 
-**v1.0 Enterprise AI Quality Framework** — Future: concurrent execution, dashboard/trend visualization, cost tracking.
+**v0.7 Multi-Provider + Resilience** — Planned: OpenAI/Azure OpenAI providers, retry/backoff, response caching.
+
+**v0.8 CI/CD** — ✅ GitHub Actions workflow (`tests.yml`) runs all 193 tests on every push and pull request to `main`/`trunk`. Pip dependency caching included. No real API key required — all tests mock the LLM provider.
+
+**v1.0 Enterprise AI Quality Framework** — Future: concurrent execution, cost tracking, per-chunk attribution in reports.

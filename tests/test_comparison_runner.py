@@ -45,7 +45,7 @@ def _make_config(
     run_names = run_names or ["Run A", "Run B"]
     return ComparisonConfig(
         runs=[
-            ComparisonRunConfig(name=n, provider="gemini", retriever="tfidf", top_k=3)
+            ComparisonRunConfig(name=n, retriever="tfidf", top_k=3)
             for n in run_names
         ],
         test_suites=["suite.yaml"],
@@ -72,24 +72,18 @@ def _patch_service(fake_results: list[TestExecutionResult]):
 def test_load_comparison_config_parses_runs(tmp_path):
     yaml_text = textwrap.dedent("""\
         runs:
-          - name: "Gemini + TF-IDF"
-            provider: gemini
+          - name: "TF-IDF"
             retriever: tfidf
             top_k: 3
-          - name: "Gemini + BM25"
-            provider: gemini
+          - name: "BM25"
             retriever: bm25
             top_k: 5
-        test_suites:
-          - suite.yaml
-        evaluators:
-          - hallucination
     """)
     p = tmp_path / "comparison.yaml"
     p.write_text(yaml_text)
     config = load_comparison_config(str(p))
     assert len(config.runs) == 2
-    assert config.runs[0].name == "Gemini + TF-IDF"
+    assert config.runs[0].name == "TF-IDF"
     assert config.runs[1].retriever == "bm25"
     assert config.runs[1].top_k == 5
 
@@ -98,9 +92,6 @@ def test_load_comparison_config_defaults_retriever_to_tfidf(tmp_path):
     yaml_text = textwrap.dedent("""\
         runs:
           - name: "Run A"
-            provider: gemini
-        test_suites: []
-        evaluators: []
     """)
     p = tmp_path / "comparison.yaml"
     p.write_text(yaml_text)
@@ -109,22 +100,18 @@ def test_load_comparison_config_defaults_retriever_to_tfidf(tmp_path):
     assert config.runs[0].top_k == 3
 
 
-def test_load_comparison_config_reports_field(tmp_path):
+def test_load_comparison_config_provider_comes_from_settings(tmp_path):
+    """Provider always comes from settings (.env), not from the YAML file."""
     yaml_text = textwrap.dedent("""\
         runs:
           - name: "Run A"
-            provider: gemini
-        test_suites: []
-        evaluators: []
-        reports:
-          - json
-          - comparison
+            retriever: bm25
     """)
     p = tmp_path / "comparison.yaml"
     p.write_text(yaml_text)
     config = load_comparison_config(str(p))
-    assert "comparison" in config.reports
-    assert "json" in config.reports
+    # provider property delegates to settings — should never be empty
+    assert len(config.runs[0].provider) > 0
 
 
 # ---------------------------------------------------------------------------
@@ -132,9 +119,16 @@ def test_load_comparison_config_reports_field(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_comparison_run_config_defaults():
-    rc = ComparisonRunConfig(name="Test", provider="gemini")
+    rc = ComparisonRunConfig(name="Test")
     assert rc.retriever == "tfidf"
     assert rc.top_k == 3
+
+
+def test_comparison_run_config_provider_is_from_settings():
+    rc = ComparisonRunConfig(name="Test", retriever="bm25")
+    # provider is a property that reads settings.provider
+    from ai_orchestrator.config.settings import settings
+    assert rc.provider == settings.provider
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +136,7 @@ def test_comparison_run_config_defaults():
 # ---------------------------------------------------------------------------
 
 def test_run_result_defaults_to_empty_results():
-    rc = ComparisonRunConfig(name="Run A", provider="gemini")
+    rc = ComparisonRunConfig(name="Run A")
     rr = RunResult(run_config=rc)
     assert rr.results == []
     assert rr.metadata is None
@@ -232,7 +226,7 @@ def test_comparison_runner_skips_comparison_report_when_not_in_reports():
 
 def test_comparison_runner_passes_rag_config_with_retriever():
     config = ComparisonConfig(
-        runs=[ComparisonRunConfig(name="BM25 Run", provider="gemini", retriever="bm25", top_k=5)],
+        runs=[ComparisonRunConfig(name="BM25 Run", retriever="bm25", top_k=5)],
         test_suites=["suite.yaml"],
         evaluators=["hallucination"],
         reports=["json"],
@@ -258,8 +252,6 @@ def test_comparison_runner_passes_rag_config_with_retriever():
 def test_comparison_runner_empty_runs_returns_empty_list():
     config = ComparisonConfig(
         runs=[],
-        test_suites=["suite.yaml"],
-        evaluators=["hallucination"],
         reports=["comparison"],
     )
     with patch("ai_orchestrator.runners.comparison_runner.ComparisonReport") as MockReport:
